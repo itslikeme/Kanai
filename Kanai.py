@@ -34,10 +34,29 @@ class Target:
 
 	def add(self):
 		c = connection.cursor()
-		c.execute('INSERT INTO TARGETS (target_name,time) VALUES (' + str(self.name) + ',' + str(self.timestamp) + ')' )
+		c.execute("INSERT INTO TARGETS (target_name,time) VALUES (" + "'" + str(self.name) + "'" + ',' + "'" + str(self.timestamp) + "'" + ")" )
 		print ' [+] SQLITE3: Added ' + str(self.name) + ' to targets table.'
 		c.execute('CREATE TABLE PROFILE_' + str(self.name) + ' (ID,COMMAND,TIMESTAMP)')
+		print ' [+] SQLITE3: Created profile table for ' + str(self.name) + ' named PROFILE_' + str(self.name)
 		os.mkdir('targets/' + str(self.name))
+		print ' [+] IO: Created folder to store logs at "targets/' + str(self.name) + '"'
+
+	def delete(self):
+		c = connection.cursor()
+		c.execute('DELETE FROM TARGETS where target_name=' + "'" + str(self.name) + "'")
+		print ' [-] SQLITE3: Deleted ' + str(self.name) + 'from targets table.'
+		c.execute('DROP TABLE PROFILE_' + str(self.name))
+		print ' [-] SQLITE3: Dropped table PROFILE_' + str(self.name)
+		os.rmdir('targets/' + str(self.name))
+		print ' [-] IO: Removed folder of logs at "targets/' + str(self.name) + '"'
+
+	def select(self):
+		c = connection.cursor()
+		c.execute("SELECT target_name FROM TARGETS WHERE target_name LIKE " + "'%" + str(self.name) + "%'")
+		if(c.fetchone() <> None):
+			return True
+		else:
+			return False
 
 
 
@@ -59,7 +78,7 @@ class Program:
  | |\  \ (_| | | | | (_| | |
  \_| \_/\__,_|_| |_|\__,_|_|
  ___________________________
- ''' + str(description) + '\n ' + str(name) + ' v.' + str(version)
+ ''' + str(description) + '\n ' + str(name) + ' v.' + str(version) + '\n\n Initialization at: ' + str(time.ctime())
  	@staticmethod
  	def clean_screen():
  		if(os.name == 'posix'):
@@ -68,9 +87,23 @@ class Program:
 
 	def targetFunc(arguments):
 		arg_analysis = arguments.split(' ')
-		if(arg_analysis[0] == 'add'):
-			if(len(arg_analysis > 1)):
+		if(arg_analysis[0] == 'ADD'):
+			if(len(arg_analysis) > 1):
 				new_target = Target(arg_analysis[1],str(time.ctime()))
+				new_target.add()
+				print ' [+] Done.'
+		if(arg_analysis[0] == 'DEL'):
+			if(len(arg_analysis) > 1):
+				del_target = Target(arg_analysis[1], str(time.ctime()))
+				del_target.delete()
+				print ' [-] Done.'
+		if(arg_analysis[0] == 'SELECT'):
+			if(len(arg_analysis) > 1):
+				select_target = Target(arg_analysis[1], str(time.ctime()))
+				if(select_target.select() == True):
+					print ' [*] ' + str(select_target.name) + ' selected.'
+				else:
+					print ' [!] Could not find ' + str(select_target.name) + ' to select it.'
 
 	def profileFunc():
 		print 'Profile Function.'
@@ -86,7 +119,7 @@ class Program:
 		elif(string[0:len('target')] == 'TARGET'):
 			arguments = string[len('TARGET '):]
 			targetFunc(arguments)
-		elif(string == 'sql'):
+		elif(string == 'SQL'):
 			console = True
 			c = connection.cursor()
 
