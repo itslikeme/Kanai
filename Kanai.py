@@ -34,9 +34,9 @@ class Target:
 
 	def add(self):
 		c = connection.cursor()
-		c.execute("INSERT INTO TARGETS (target_name,time) VALUES (" + "'" + str(self.name) + "'" + ',' + "'" + str(self.timestamp) + "'" + ")" )
+		c.execute("INSERT INTO TARGETS (id,target_name,time) VALUES (NULL," + "'" + str(self.name) + "'" + ',' + "'" + str(self.timestamp) + "'" + ")" )
 		print ' [+] SQLITE3: Added ' + str(self.name) + ' to targets table.'
-		c.execute('CREATE TABLE PROFILE_' + str(self.name) + ' (ID,COMMAND,TIMESTAMP)')
+		c.execute('CREATE TABLE PROFILE_' + str(self.name) + ' (ID INTEGER PRIMARY KEY,NAME,COMMAND,TIMESTAMP)')
 		print ' [+] SQLITE3: Created profile table for ' + str(self.name) + ' named PROFILE_' + str(self.name)
 		os.mkdir('targets/' + str(self.name))
 		print ' [+] IO: Created folder to store logs at "targets/' + str(self.name) + '"'
@@ -58,7 +58,36 @@ class Target:
 		else:
 			return False
 
+	class Profile:
+		"""This class is responsible for managing profiles operations."""
+		def __init__(self, owner, name, command, timestamp):
+			super(Profile, self).__init__()
+			self.owner = owner
+			self.name = name
+			self.command = command
+			self.timestamp = timestamp
+			print self.name, self.command, self.timestamp
 
+		@classmethod
+		def add(self, owner, name, command, timestamp):
+			self.owner = owner
+			self.name = name
+			self.command = command
+			self.timestamp = timestamp
+			c.execute("INSERT INTO PROFILE_" + str(owner) + " VALUES (NULL," + "'" + str(name) + "','" + str(command) + "','" + str(timestamp) + "')")
+			print ' [+] Added ' + str(command) + ' to profile ' + str(name) + ' of ' + str(owner) + '.'
+			return True
+
+		@classmethod
+		def delete(self, owner, name):
+			self.owner = owner
+			self.name = name
+			c.execute("DELETE FROM PROFILE_" + str(owner) + " WHERE NAME=" + "'" + str(name) + "'")
+			print ' [-] Deleted ' + str(name) + ' from ' + str(owner) + '.'
+
+
+
+		
 
 
 
@@ -99,23 +128,45 @@ class Program:
 				print ' [-] Done.'
 		if(arg_analysis[0] == 'SELECT'):
 			if(len(arg_analysis) > 1):
+				global select_target
 				select_target = Target(arg_analysis[1], str(time.ctime()))
 				if(select_target.select() == True):
+
 					print ' [*] ' + str(select_target.name) + ' selected.'
 				else:
 					print ' [!] Could not find ' + str(select_target.name) + ' to select it.'
 
-	def profileFunc():
-		print 'Profile Function.'
-
+	def profileFunc(arguments):
+		arg_analysis = arguments.split(' ')
+		if(arg_analysis[0] == ''):
+			if(select_target <> None):
+				c = connection.cursor()
+				c.execute("SELECT Count(*) FROM PROFILE_" + str(select_target.name))
+				profiles = c.fetchall()
+				print ' ' + select_target.name + ' has ' + str(profiles[0])[1:-2] + ' profiles.'
+			else:
+				print ' [!] Error: You need to select a target using TARGET SELECT <TARGETNAME>'
+		if(arg_analysis[0] == 'ADD'):
+			if(select_target <> None):
+				#CODIGO PRA CRIAR UM PROFILE
+				#AQUI VAI SER ONDE SERA GERADO O COMANDO PARA O USUARIO 
+				#VOU FAZER UMA CLASSE PRA ISSO COM CADA PARAMETRO ESSENCIAL E OPCIONAL
+		if(arg_analysis[0] == 'DEL'):
+			if(select_target <> None):
+				#CODIGO PRA DELETAR UM PROFILE
+		if(arg_analysis[0] == 'RUN'):
+			if(select_target <> None):
+				#CODIGO PRA EXECUTAR UM PROFILE
+			
 
 
 	
 	@staticmethod
 	def command(string):
 		global db
-		if(string == 'PROFILE'):
-			profileFunc()
+		if(string[0:len('profile')] == 'PROFILE'):
+			arguments = string[len('PROFILE '):]
+			profileFunc(arguments)
 		elif(string[0:len('target')] == 'TARGET'):
 			arguments = string[len('TARGET '):]
 			targetFunc(arguments)
@@ -137,7 +188,7 @@ class Program:
 			db.stop()
 			sys.exit(0)
 		else:
-			print 'No valid command was given.'
+			print ' No valid command was given.'
 
 
 
@@ -165,6 +216,8 @@ def init():
 
 	db = Database('KANAI.DB')
 	db.start()
+	global select_target
+	select_target = None
 	
 	while 1:
 		if(Program.clean_screen()):
